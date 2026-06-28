@@ -30,16 +30,38 @@ static void dumpHex(const std::vector<uint8_t>& data)
             << ' ';
     }
 
-    std::cout << std::dec << "\n";
+    std::cout << std::dec << '\n';
 }
 
-static void executeCommand(
+static void showFrame(const std::vector<uint8_t>& rx)
+{
+    std::cout << "\nRX (" << rx.size() << " bytes)";
+    dumpHex(rx);
+
+    AMBEFrame frame;
+
+    if (!frame.deserialize(rx))
+    {
+        std::cout << "\nNo se pudo interpretar la trama.\n";
+        return;
+    }
+
+    std::cout << '\n'
+              << frame.toString();
+
+    std::cout
+        << "TIPO    : "
+        << AMBE3000Protocol::commandToString(frame.command)
+        << "\n";
+}
+
+static void sendCommand(
     SerialPort& serial,
-    const std::vector<uint8_t>& tx,
-    const std::string& name)
+    const std::string& title,
+    const std::vector<uint8_t>& tx)
 {
     std::cout << "\n=========================================\n";
-    std::cout << name << "\n";
+    std::cout << title << '\n';
     std::cout << "=========================================\n";
 
     std::cout << "\nTX (" << tx.size() << " bytes)";
@@ -59,22 +81,7 @@ static void executeCommand(
         return;
     }
 
-    std::cout << "\nRX (" << rx.size() << " bytes)";
-    dumpHex(rx);
-
-    AMBEFrame frame;
-
-    if (!frame.deserialize(rx))
-    {
-        std::cout << "\nNo se pudo interpretar la trama.\n";
-        return;
-    }
-
-    std::cout << "\n" << frame.toString();
-
-    std::cout << "Tipo : "
-              << AMBE3000Protocol::commandToString(frame.command)
-              << "\n";
+    showFrame(rx);
 }
 
 int main()
@@ -90,11 +97,9 @@ int main()
             "/dev/serial/by-id/usb-1a86_USB2.0-Serial-if00-port0",
             230400))
     {
-        std::cout << "\nNo se pudo abrir el puerto serie.\n";
+        std::cout << "\nERROR abriendo puerto.\n";
         return 1;
     }
-
-    std::cout << "\nPuerto abierto correctamente.\n";
 
     for (;;)
     {
@@ -103,42 +108,67 @@ int main()
             << "1) RESET_SOFTCFG\n"
             << "2) PRODUCT_ID\n"
             << "3) VERSION\n"
-            << "0) Salir\n"
-            << "\nOpcion: ";
+            << "4) ESCUCHAR 5 SEGUNDOS\n"
+            << "0) SALIR\n\n"
+            << "Opcion: ";
 
-        int option;
+        int option = 0;
 
         std::cin >> option;
 
         switch (option)
         {
             case 1:
-                executeCommand(
+                sendCommand(
                     serial,
-                    AMBE3000Protocol::buildResetSoftCfg(),
-                    "RESET_SOFTCFG");
+                    "RESET_SOFTCFG",
+                    AMBE3000Protocol::buildResetSoftCfg());
                 break;
 
             case 2:
-                executeCommand(
+                sendCommand(
                     serial,
-                    AMBE3000Protocol::buildProductId(),
-                    "PRODUCT_ID");
+                    "PRODUCT_ID",
+                    AMBE3000Protocol::buildProductId());
                 break;
 
             case 3:
-                executeCommand(
+                sendCommand(
                     serial,
-                    AMBE3000Protocol::buildVersion(),
-                    "VERSION");
+                    "VERSION",
+                    AMBE3000Protocol::buildVersion());
                 break;
+
+            case 4:
+            {
+                std::cout << "\nEscuchando...\n";
+
+                auto start =
+                    std::chrono::steady_clock::now();
+
+                while (true)
+                {
+                    auto now =
+                        std::chrono::steady_clock::now();
+
+                    if (std::chrono::duration_cast<std::chrono::seconds>(
+                            now - start).count() >= 5)
+                        break;
+
+                    std::vector<uint8_t> rx;
+
+                    if (serial.readFrame(rx, 250, 20))
+                        showFrame(rx);
+                }
+
+                break;
+            }
 
             case 0:
                 return 0;
 
             default:
-                std::cout << "\nOpción no válida.\n";
-                break;
+                std::cout << "\nOpcion no valida.\n";
         }
     }
 }
