@@ -1,0 +1,28 @@
+# Build
+build/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Objetos
+*.o
+*.a
+*.so
+
+# VSCode
+.vscode/
+
+# JetBrains
+.idea/
+
+# Temporales
+*.swp
+*.bak
+*~
+
+# Logs
+*.log
