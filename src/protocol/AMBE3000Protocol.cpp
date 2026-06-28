@@ -65,11 +65,27 @@ AMBE3000Protocol::buildVersion()
 
 bool
 AMBE3000Protocol::isReady(
-    const std::vector<uint8_t>& frame)
+    const AMBEFrame& frame)
 {
-    if (frame.size() < 5)
-        return false;
+    return
+        frame.start == 0x61 &&
+        frame.command == 0x0039;
+}
 
-    return frame[0] == 0x61 &&
-           frame[4] == 0x39;
+bool
+AMBE3000Protocol::isProductId(
+    const AMBEFrame& frame)
+{
+    return
+        frame.start == 0x61 &&
+        frame.command == 0x0030;
+}
+
+bool
+AMBE3000Protocol::isVersion(
+    const AMBEFrame& frame)
+{
+    return
+        frame.start == 0x61 &&
+        frame.command == 0x0031;
 }
