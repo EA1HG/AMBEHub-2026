@@ -89,3 +89,32 @@ AMBE3000Protocol::isVersion(
         frame.start == 0x61 &&
         frame.command == 0x0031;
 }
+
+std::string
+AMBE3000Protocol::commandToString(
+    uint16_t command)
+{
+    switch (command)
+    {
+        case 0x0030:
+            return "PRODUCT_ID";
+
+        case 0x0031:
+            return "VERSION";
+
+        case 0x0034:
+            return "RESET_SOFTCFG";
+
+        case 0x0039:
+            return "READY";
+
+        case 0x0001:
+            return "AMBE";
+
+        case 0x0002:
+            return "PCM";
+
+        default:
+            return "UNKNOWN";
+    }
+}

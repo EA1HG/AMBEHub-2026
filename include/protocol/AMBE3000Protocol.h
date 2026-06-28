@@ -2,6 +2,7 @@
 #define AMBE3000PROTOCOL_H
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "protocol/AMBEFrame.h"
@@ -18,10 +19,6 @@ public:
 
     static std::vector<uint8_t> buildVersion();
 
-    /*
-     * Comprobaciones de respuestas del codec.
-     */
-
     static bool isReady(
         const AMBEFrame& frame);
 
@@ -30,6 +27,13 @@ public:
 
     static bool isVersion(
         const AMBEFrame& frame);
+
+    //
+    // NUEVO
+    //
+
+    static std::string commandToString(
+        uint16_t command);
 };
 
 #endif
