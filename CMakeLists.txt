@@ -32,9 +32,11 @@ set(COMMON_SOURCES
     src/protocol/Packet.cpp
     src/protocol/PacketDispatcher.cpp
     src/protocol/PacketSerializer.cpp
+    src/protocol/PacketSerializer.cpp
 
     src/protocol/AMBEFrame.cpp
     src/protocol/AMBE3000Protocol.cpp
+    src/protocol/DV3KResponse.cpp
 
     #
     # Session

@@ -7,6 +7,7 @@
 #include "device/SerialPort.h"
 #include "protocol/AMBE3000Protocol.h"
 #include "protocol/AMBEFrame.h"
+#include "protocol/DV3KResponse.h"
 
 static void dumpHex(const std::vector<uint8_t>& data)
 {
@@ -38,20 +39,69 @@ static void showFrame(const std::vector<uint8_t>& rx)
     std::cout << "\nRX (" << rx.size() << " bytes)";
     dumpHex(rx);
 
+    //
+    // Respuestas RAW del DV3K
+    //
+
+    if (!rx.empty() && rx[0] == 0x00)
+    {
+        DV3KResponse response;
+
+        if (response.parse(rx))
+        {
+            std::cout
+                << "\nTIPO      : "
+                << response.commandName()
+                << "\n";
+
+            if (response.isProductId())
+            {
+                std::cout
+                    << "PRODUCTO  : "
+                    << response.productId()
+                    << "\n";
+            }
+
+            if (response.isVersion())
+            {
+                std::cout
+                    << "FIRMWARE  : "
+                    << response.version()
+                    << "\n";
+            }
+
+            if (response.isReady())
+            {
+                std::cout
+                    << "ESTADO    : READY\n";
+            }
+
+            return;
+        }
+    }
+
+    //
+    // Trama completa
+    //
+
     AMBEFrame frame;
 
     if (!frame.deserialize(rx))
     {
-        std::cout << "\nNo se pudo interpretar la trama.\n";
+        std::cout
+            << "\nNo se pudo interpretar la trama.\n";
+
         return;
     }
 
-    std::cout << '\n'
-              << frame.toString();
+    std::cout
+        << '\n'
+        << frame.toString();
 
     std::cout
-        << "TIPO    : "
-        << AMBE3000Protocol::commandToString(frame.command)
+        << "TIPO      : "
+        << AMBE3000Protocol::commandToString(
+               frame.command)
         << "\n";
 }
 
@@ -90,7 +140,7 @@ int main()
 
     std::cout
         << "\n=========================================\n"
-        << "      AMBEHub Diagnostic 0.4\n"
+        << "      AMBEHub Diagnostic 0.5\n"
         << "=========================================\n";
 
     if (!serial.open(

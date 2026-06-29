@@ -11,13 +11,20 @@ void DV3KResponse::clear()
     m_payload.clear();
 }
 
-bool DV3KResponse::parse(
-    const std::vector<uint8_t>& data)
+bool DV3KResponse::parse(const std::vector<uint8_t>& data)
 {
     clear();
 
     if (data.size() < 2)
         return false;
+
+    //
+    // Las respuestas del DV3K comienzan con:
+    //
+    // 00 30  -> PRODUCT_ID
+    // 00 31  -> VERSION
+    // 00 39  -> READY
+    //
 
     m_command =
         (static_cast<uint16_t>(data[0]) << 8) |
@@ -30,7 +37,7 @@ bool DV3KResponse::parse(
             data.end());
 
         //
-        // Eliminamos NULL final
+        // Elimina los NULL finales
         //
 
         while (!m_payload.empty() &&
@@ -65,6 +72,9 @@ uint16_t DV3KResponse::command() const
 
 std::string DV3KResponse::productId() const
 {
+    if (!isProductId())
+        return "";
+
     return std::string(
         m_payload.begin(),
         m_payload.end());
@@ -72,6 +82,9 @@ std::string DV3KResponse::productId() const
 
 std::string DV3KResponse::version() const
 {
+    if (!isVersion())
+        return "";
+
     return std::string(
         m_payload.begin(),
         m_payload.end());
