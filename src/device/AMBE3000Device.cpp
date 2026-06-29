@@ -36,6 +36,42 @@ static std::string dumpHex(const std::vector<uint8_t>& data)
     return ss.str();
 }
 
+bool AMBE3000Device::sendDV3KCommand(
+    const std::vector<uint8_t>& command,
+    DV3KResponse& response)
+{
+    std::vector<uint8_t> rx;
+
+    if (!m_serial.write(command))
+        return false;
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(20));
+
+    if (!m_serial.readFrame(rx, 2000, 20))
+        return false;
+
+    AMBEFrame frame;
+
+    if (!frame.deserialize(rx))
+        return false;
+
+    std::vector<uint8_t> dv3k;
+
+    dv3k.push_back(
+        static_cast<uint8_t>(frame.command >> 8));
+
+    dv3k.push_back(
+        static_cast<uint8_t>(frame.command & 0xFF));
+
+    dv3k.insert(
+        dv3k.end(),
+        frame.payload.begin(),
+        frame.payload.end());
+
+    return response.parse(dv3k);
+}
+
 bool AMBE3000Device::open()
 {
     if (!m_serial.open(
@@ -72,58 +108,15 @@ bool AMBE3000Device::open()
     std::this_thread::sleep_for(
        std::chrono::milliseconds(5)); */
 
-    std::vector<uint8_t> rx;
-
-Logger::info("Consultando PRODUCT_ID...");
-
-auto cmd =
-    AMBE3000Protocol::buildProductId();
-
-if (!m_serial.write(cmd))
-{
-    Logger::error("No se pudo enviar PRODUCT_ID.");
-    return false;
-}
-
-std::this_thread::sleep_for(
-    std::chrono::milliseconds(20));
-
-if (!m_serial.readFrame(rx, 2000, 20))
-{
-
-}
-
-Logger::info(
-    "PRODUCT_ID recibido (" +
-    std::to_string(rx.size()) +
-    " bytes)");
-
-AMBEFrame frame;
-
-if (!frame.deserialize(rx))
-{
-    Logger::error("No se pudo decodificar la trama DV3K.");
-    return false;
-}
+    Logger::info("Consultando PRODUCT_ID...");
 
 DV3KResponse response;
 
-std::vector<uint8_t> dv3k;
-
-dv3k.push_back(
-    static_cast<uint8_t>(frame.command >> 8));
-
-dv3k.push_back(
-    static_cast<uint8_t>(frame.command & 0xFF));
-
-dv3k.insert(
-    dv3k.end(),
-    frame.payload.begin(),
-    frame.payload.end());
-
-if (!response.parse(dv3k))
+if (!sendDV3KCommand(
+        AMBE3000Protocol::buildProductId(),
+        response))
 {
-    Logger::error("No se pudo interpretar la respuesta DV3K.");
+    Logger::error("No se pudo obtener el PRODUCT_ID.");
     return false;
 }
 
@@ -132,6 +125,26 @@ m_product = response.productId();
 Logger::info(
     "Producto detectado: " +
     m_product);
+    
+    Logger::info("Consultando VERSION...");
+
+if (!sendDV3KCommand(
+        AMBE3000Protocol::buildVersion(),
+        response))
+{
+    Logger::error("No se pudo obtener VERSION.");
+    return false;
+}
+
+m_firmware = response.version();
+
+Logger::info(
+    "Firmware detectado: " +
+    m_firmware);
+    
+    m_state = DeviceState::FREE;
+
+return true;
 }
 
 void AMBE3000Device::close()

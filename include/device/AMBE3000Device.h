@@ -2,6 +2,9 @@
 #define AMBE3000DEVICE_H
 
 #include <string>
+#include <vector>
+
+#include "protocol/DV3KResponse.h"
 
 #include "device/IDevice.h"
 #include "device/SerialPort.h"
@@ -30,7 +33,10 @@ public:
         DeviceState state) override;
 
 private:
-
+    bool sendDV3KCommand(
+    const std::vector<uint8_t>& command,
+    DV3KResponse& response);
+    
     SerialPort m_serial;
 
     DeviceState m_state;
