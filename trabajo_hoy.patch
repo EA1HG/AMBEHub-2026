@@ -1,0 +1,371 @@
+diff --git a/include/protocol/DV3KResponse.h b/include/protocol/DV3KResponse.h
+index 60b6686..81aec9e 100644
+--- a/include/protocol/DV3KResponse.h
++++ b/include/protocol/DV3KResponse.h
+@@ -1,5 +1,6 @@
+ #ifndef DV3KRESPONSE_H
+ #define DV3KRESPONSE_H
++#include "protocol/AMBEFrame.h"
+ 
+ #include <cstdint>
+ #include <string>
+@@ -14,7 +15,7 @@ public:
+     void clear();
+ 
+     bool parse(
+-        const std::vector<uint8_t>& data);
++    const AMBEFrame& frame);
+ 
+     bool isReady() const;
+ 
+diff --git a/src/device/AMBE3000Device.cpp b/src/device/AMBE3000Device.cpp
+index 9cc0541..a74d16f 100644
+--- a/src/device/AMBE3000Device.cpp
++++ b/src/device/AMBE3000Device.cpp
+@@ -1,5 +1,6 @@
+ #include "device/AMBE3000Device.h"
+ 
++
+ #include <chrono>
+ #include <iomanip>
+ #include <sstream>
+@@ -7,6 +8,9 @@
+ 
+ #include "Logger.h"
+ #include "protocol/AMBE3000Protocol.h"
++#include "protocol/DV3KResponse.h"
++#include "protocol/AMBEFrame.h"
++
+ 
+ AMBE3000Device::AMBE3000Device()
+ {
+@@ -53,7 +57,7 @@ bool AMBE3000Device::open()
+     auto zero =
+         AMBE3000Protocol::buildZeroPacket();
+ 
+-    Logger::info("Enviando 35 ZERO_PACKET...");
++   /* Logger::info("Enviando 35 ZERO_PACKET...");
+ 
+     for (int i = 0; i < 35; i++)
+     {
+@@ -66,46 +70,55 @@ bool AMBE3000Device::open()
+     Logger::info("ZERO_PACKET enviados.");
+ 
+     std::this_thread::sleep_for(
+-        std::chrono::milliseconds(5));
++       std::chrono::milliseconds(5)); */
+ 
+-    auto reset =
+-        AMBE3000Protocol::buildResetSoftCfg();
++    std::vector<uint8_t> rx;
+ 
+-    Logger::info("Enviando RESET_SOFTCFG...");
++Logger::info("Consultando PRODUCT_ID...");
+ 
+-    if (!m_serial.write(reset))
+-    {
+-        Logger::error("No se pudo enviar RESET.");
++auto cmd =
++    AMBE3000Protocol::buildProductId();
+ 
+-        return false;
+-    }
++if (!m_serial.write(cmd))
++{
++    Logger::error("No se pudo enviar PRODUCT_ID.");
++    return false;
++}
+ 
+-    std::vector<uint8_t> rx;
++std::this_thread::sleep_for(
++    std::chrono::milliseconds(20));
+ 
+-    Logger::info("Esperando respuesta...");
++if (!m_serial.readFrame(rx, 2000, 20))
++{
+ 
+-    if (m_serial.readFrame(
+-            rx,
+-            2000,
+-            20))
+-    {
+-        Logger::info(
+-            "Respuesta (" +
+-            std::to_string(rx.size()) +
+-            " bytes):");
++}
+ 
+-        Logger::info(
+-            dumpHex(rx));
+-    }
+-    else
+-    {
+-        Logger::warning(
+-            "No se recibió respuesta al RESET.");
+-    }
++Logger::info(
++    "PRODUCT_ID recibido (" +
++    std::to_string(rx.size()) +
++    " bytes)");
+ 
+-    m_state = DeviceState::FREE;
++AMBEFrame frame;
+ 
+-    return true;
++if (!frame.deserialize(rx))
++{
++    Logger::error("No se pudo decodificar la trama DV3K.");
++    return false;
++}
++
++DV3KResponse response;
++
++if (!response.parse(frame))
++{
++    Logger::error("No se pudo interpretar la respuesta DV3K.");
++    return false;
++}
++
++m_product = response.productId();
++
++Logger::info(
++    "Producto detectado: " +
++    m_product);
+ }
+ 
+ void AMBE3000Device::close()
+@@ -124,14 +137,19 @@ bool AMBE3000Device::reset()
+ 
+ std::string AMBE3000Device::getName() const
+ {
++    if (!m_product.empty())
++        return m_product;
++
+     return "DVMEGA AMBE3000";
+ }
+ 
+ std::string AMBE3000Device::getFirmware() const
+ {
++    if (!m_firmware.empty())
++        return m_firmware;
++
+     return "Unknown";
+ }
+-
+ DeviceType AMBE3000Device::getType() const
+ {
+     return DeviceType::AMBE3000;
+diff --git a/src/device/SerialPort.cpp b/src/device/SerialPort.cpp
+index bf59f28..a32c981 100644
+--- a/src/device/SerialPort.cpp
++++ b/src/device/SerialPort.cpp
+@@ -139,19 +139,25 @@ bool SerialPort::read(
+     uint8_t buffer[512];
+ 
+     int n =
+-        ::read(
+-            m_fd,
+-            buffer,
+-            sizeof(buffer));
++    ::read(
++        m_fd,
++        buffer,
++        sizeof(buffer));
+ 
+-    if (n <= 0)
+-        return false;
++if (n > 0)
++{
++    Logger::info(
++        "read(): leidos " +
++        std::to_string(n) +
++        " bytes");
+ 
+-    data.assign(
++    data.insert(
++        data.end(),
+         buffer,
+         buffer + n);
++}
+ 
+-    return true;
++return true;
+ }
+ 
+ bool SerialPort::readFrame(
+diff --git a/src/protocol/AMBE3000Protocol.cpp b/src/protocol/AMBE3000Protocol.cpp
+index 411a183..3538f68 100644
+--- a/src/protocol/AMBE3000Protocol.cpp
++++ b/src/protocol/AMBE3000Protocol.cpp
+@@ -1,100 +1,79 @@
+-#include "protocol/AMBE3000Protocol.h"
++#include "protocol/DV3KResponse.h"
+ 
+-std::vector<uint8_t>
+-AMBE3000Protocol::buildZeroPacket()
++DV3KResponse::DV3KResponse()
+ {
+-    return
+-    {
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00,
+-        0x00
+-    };
++    clear();
+ }
+ 
+-std::vector<uint8_t>
+-AMBE3000Protocol::buildResetSoftCfg()
++void DV3KResponse::clear()
+ {
+-    return
+-    {
+-        0x61,
+-        0x00,
+-        0x07,
+-        0x00,
+-        0x34,
+-        0x05,
+-        0x00,
+-        0x00,
+-        0x0F,
+-        0x00,
+-        0x00
+-    };
++    m_command = 0;
++    m_payload.clear();
+ }
+ 
+-std::vector<uint8_t>
+-AMBE3000Protocol::buildProductId()
++bool DV3KResponse::parse(const AMBEFrame& frame)
+ {
+-    return
++    clear();
++
++    m_command = frame.command;
++    m_payload = frame.payload;
++
++    //
++    // Elimina NULL finales
++    //
++
++    while (!m_payload.empty() &&
++           m_payload.back() == 0x00)
+     {
+-        0x61,
+-        0x00,
+-        0x01,
+-        0x00,
+-        0x30
+-    };
++        m_payload.pop_back();
++    }
++
++    return true;
+ }
+ 
+-std::vector<uint8_t>
+-AMBE3000Protocol::buildVersion()
++bool DV3KResponse::isReady() const
+ {
+-    return
+-    {
+-        0x61,
+-        0x00,
+-        0x01,
+-        0x00,
+-        0x31
+-    };
++    return m_command == 0x0039;
+ }
+ 
+-bool
+-AMBE3000Protocol::isReady(
+-    const AMBEFrame& frame)
++bool DV3KResponse::isProductId() const
+ {
+-    return
+-        frame.start == 0x61 &&
+-        frame.command == 0x0039;
++    return m_command == 0x0030;
+ }
+ 
+-bool
+-AMBE3000Protocol::isProductId(
+-    const AMBEFrame& frame)
++bool DV3KResponse::isVersion() const
+ {
+-    return
+-        frame.start == 0x61 &&
+-        frame.command == 0x0030;
++    return m_command == 0x0031;
+ }
+ 
+-bool
+-AMBE3000Protocol::isVersion(
+-    const AMBEFrame& frame)
++uint16_t DV3KResponse::command() const
+ {
+-    return
+-        frame.start == 0x61 &&
+-        frame.command == 0x0031;
++    return m_command;
+ }
+ 
+-std::string
+-AMBE3000Protocol::commandToString(
+-    uint16_t command)
++std::string DV3KResponse::productId() const
+ {
+-    switch (command)
++    if (!isProductId())
++        return "";
++
++    return std::string(
++        m_payload.begin(),
++        m_payload.end());
++}
++
++std::string DV3KResponse::version() const
++{
++    if (!isVersion())
++        return "";
++
++    return std::string(
++        m_payload.begin(),
++        m_payload.end());
++}
++
++std::string DV3KResponse::commandName() const
++{
++    switch (m_command)
+     {
+         case 0x0030:
+             return "PRODUCT_ID";
+@@ -102,18 +81,9 @@ AMBE3000Protocol::commandToString(
+         case 0x0031:
+             return "VERSION";
+ 
+-        case 0x0034:
+-            return "RESET_SOFTCFG";
+-
+         case 0x0039:
+             return "READY";
+ 
+-        case 0x0001:
+-            return "AMBE";
+-
+-        case 0x0002:
+-            return "PCM";
+-
+         default:
+             return "UNKNOWN";
+     }

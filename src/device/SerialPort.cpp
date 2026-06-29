@@ -139,19 +139,25 @@ bool SerialPort::read(
     uint8_t buffer[512];
 
     int n =
-        ::read(
-            m_fd,
-            buffer,
-            sizeof(buffer));
+    ::read(
+        m_fd,
+        buffer,
+        sizeof(buffer));
 
-    if (n <= 0)
-        return false;
+if (n > 0)
+{
+    Logger::info(
+        "read(): leidos " +
+        std::to_string(n) +
+        " bytes");
 
-    data.assign(
+    data.insert(
+        data.end(),
         buffer,
         buffer + n);
+}
 
-    return true;
+return true;
 }
 
 bool SerialPort::readFrame(

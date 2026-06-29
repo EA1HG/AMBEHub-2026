@@ -1,5 +1,6 @@
 #include "device/AMBE3000Device.h"
 
+
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -7,6 +8,9 @@
 
 #include "Logger.h"
 #include "protocol/AMBE3000Protocol.h"
+#include "protocol/DV3KResponse.h"
+#include "protocol/AMBEFrame.h"
+
 
 AMBE3000Device::AMBE3000Device()
 {
@@ -53,7 +57,7 @@ bool AMBE3000Device::open()
     auto zero =
         AMBE3000Protocol::buildZeroPacket();
 
-    Logger::info("Enviando 35 ZERO_PACKET...");
+   /* Logger::info("Enviando 35 ZERO_PACKET...");
 
     for (int i = 0; i < 35; i++)
     {
@@ -66,46 +70,68 @@ bool AMBE3000Device::open()
     Logger::info("ZERO_PACKET enviados.");
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(5));
-
-    auto reset =
-        AMBE3000Protocol::buildResetSoftCfg();
-
-    Logger::info("Enviando RESET_SOFTCFG...");
-
-    if (!m_serial.write(reset))
-    {
-        Logger::error("No se pudo enviar RESET.");
-
-        return false;
-    }
+       std::chrono::milliseconds(5)); */
 
     std::vector<uint8_t> rx;
 
-    Logger::info("Esperando respuesta...");
+Logger::info("Consultando PRODUCT_ID...");
 
-    if (m_serial.readFrame(
-            rx,
-            2000,
-            20))
-    {
-        Logger::info(
-            "Respuesta (" +
-            std::to_string(rx.size()) +
-            " bytes):");
+auto cmd =
+    AMBE3000Protocol::buildProductId();
 
-        Logger::info(
-            dumpHex(rx));
-    }
-    else
-    {
-        Logger::warning(
-            "No se recibió respuesta al RESET.");
-    }
+if (!m_serial.write(cmd))
+{
+    Logger::error("No se pudo enviar PRODUCT_ID.");
+    return false;
+}
 
-    m_state = DeviceState::FREE;
+std::this_thread::sleep_for(
+    std::chrono::milliseconds(20));
 
-    return true;
+if (!m_serial.readFrame(rx, 2000, 20))
+{
+
+}
+
+Logger::info(
+    "PRODUCT_ID recibido (" +
+    std::to_string(rx.size()) +
+    " bytes)");
+
+AMBEFrame frame;
+
+if (!frame.deserialize(rx))
+{
+    Logger::error("No se pudo decodificar la trama DV3K.");
+    return false;
+}
+
+DV3KResponse response;
+
+std::vector<uint8_t> dv3k;
+
+dv3k.push_back(
+    static_cast<uint8_t>(frame.command >> 8));
+
+dv3k.push_back(
+    static_cast<uint8_t>(frame.command & 0xFF));
+
+dv3k.insert(
+    dv3k.end(),
+    frame.payload.begin(),
+    frame.payload.end());
+
+if (!response.parse(dv3k))
+{
+    Logger::error("No se pudo interpretar la respuesta DV3K.");
+    return false;
+}
+
+m_product = response.productId();
+
+Logger::info(
+    "Producto detectado: " +
+    m_product);
 }
 
 void AMBE3000Device::close()
@@ -124,14 +150,19 @@ bool AMBE3000Device::reset()
 
 std::string AMBE3000Device::getName() const
 {
+    if (!m_product.empty())
+        return m_product;
+
     return "DVMEGA AMBE3000";
 }
 
 std::string AMBE3000Device::getFirmware() const
 {
+    if (!m_firmware.empty())
+        return m_firmware;
+
     return "Unknown";
 }
-
 DeviceType AMBE3000Device::getType() const
 {
     return DeviceType::AMBE3000;
