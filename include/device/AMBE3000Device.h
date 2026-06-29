@@ -1,6 +1,8 @@
 #ifndef AMBE3000DEVICE_H
 #define AMBE3000DEVICE_H
 
+#include <string>
+
 #include "device/IDevice.h"
 #include "device/SerialPort.h"
 
@@ -24,13 +26,22 @@ public:
 
     DeviceState getState() const override;
 
-    void setState(DeviceState state) override;
+    void setState(
+        DeviceState state) override;
 
 private:
 
     SerialPort m_serial;
 
     DeviceState m_state;
+
+    //
+    // Información del codec
+    //
+
+    std::string m_product;
+
+    std::string m_firmware;
 };
 
 #endif
