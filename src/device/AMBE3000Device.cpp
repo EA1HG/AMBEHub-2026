@@ -142,10 +142,29 @@ Logger::info(
     "Firmware detectado: " +
     m_firmware);
     
+    Logger::info("Enviando RESET_SOFTCFG...");
+
+if (!sendDV3KCommand(
+        AMBE3000Protocol::buildResetSoftCfg(),
+        response))
+{
+    Logger::error("No se pudo completar RESET.");
+    return false;
+}
+
+if (!response.isReady())
+{
+    Logger::error("El codec no respondió READY.");
+    return false;
+}
+
+Logger::info("Codec inicializado correctamente.");
+    
     m_state = DeviceState::FREE;
 
 return true;
 }
+
 
 void AMBE3000Device::close()
 {
