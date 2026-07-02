@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "protocol/AMBEFrame.h"
+#include "protocol/PCMFrame.h"
+#include "protocol/AMBEVoiceFrame.h"
 
 class AMBE3000Protocol
 {
@@ -18,6 +20,8 @@ public:
     static std::vector<uint8_t> buildProductId();
 
     static std::vector<uint8_t> buildVersion();
+    
+    static std::vector<uint8_t> buildSetDMR();
 
     static bool isReady(
         const AMBEFrame& frame);
@@ -29,8 +33,14 @@ public:
         const AMBEFrame& frame);
 
     //
-    // NUEVO
+    // Voz
     //
+
+    static AMBEFrame buildEncodeSpeech(
+        const PCMFrame& pcm);
+
+    static AMBEFrame buildDecodeSpeech(
+        const AMBEVoiceFrame& ambe);
 
     static std::string commandToString(
         uint16_t command);

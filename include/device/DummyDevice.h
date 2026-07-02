@@ -26,6 +26,20 @@ public:
     void setState(
         DeviceState state) override;
 
+    bool sendFrame(
+        const AMBEFrame& frame) override;
+
+    bool exchangeFrame(
+        const AMBEFrame& tx,
+        AMBEFrame& rx) override;
+        
+        bool sendRaw(
+    const std::vector<uint8_t>& tx) override;
+
+bool exchangeRaw(
+    const std::vector<uint8_t>& tx,
+    std::vector<uint8_t>& rx) override;
+
 private:
 
     DeviceState m_state;

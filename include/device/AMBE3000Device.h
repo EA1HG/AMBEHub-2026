@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "protocol/AMBEFrame.h"
 #include "protocol/DV3KResponse.h"
 
 #include "device/IDevice.h"
@@ -32,11 +33,39 @@ public:
     void setState(
         DeviceState state) override;
 
+    bool sendFrame(
+        const AMBEFrame& frame);
+
+    bool exchangeFrame(
+        const AMBEFrame& tx,
+        AMBEFrame& rx);
+
+    //
+    // NUEVO
+    // Intercambio RAW para los paquetes de AUDIO
+    //
+
+    bool exchangeRaw(
+        const std::vector<uint8_t>& tx,
+        std::vector<uint8_t>& rx);
+        
+    bool sendRaw(
+    const std::vector<uint8_t>& tx);    
+
 private:
+
     bool sendDV3KCommand(
-    const std::vector<uint8_t>& command,
-    DV3KResponse& response);
-    
+        const std::vector<uint8_t>& command,
+        DV3KResponse& response);
+
+    bool initializeCodec();
+
+    bool queryProduct();
+
+    bool queryVersion();
+
+    bool resetCodec();
+
     SerialPort m_serial;
 
     DeviceState m_state;

@@ -20,6 +20,19 @@ public:
 
     std::string toString() const;
 
+    //
+    // Helpers
+    //
+
+    void appendByte(
+        uint8_t value);
+
+    void appendData(
+        const std::vector<uint8_t>& data);
+
+    void setPayload(
+        const std::vector<uint8_t>& data);
+
 public:
 
     uint8_t start;

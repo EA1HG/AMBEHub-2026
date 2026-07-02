@@ -1,9 +1,9 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <thread>
 #include <vector>
-
 #include "device/SerialPort.h"
 #include "protocol/AMBE3000Protocol.h"
 #include "protocol/AMBEFrame.h"
@@ -134,13 +134,39 @@ static void sendCommand(
     showFrame(rx);
 }
 
+static std::vector<uint8_t> parseHexString(
+    const std::string& text)
+{
+    std::vector<uint8_t> data;
+
+    std::stringstream ss(text);
+
+    std::string token;
+
+    while (ss >> token)
+    {
+        unsigned int value = 0;
+
+        std::stringstream hex;
+
+        hex << std::hex << token;
+
+        hex >> value;
+
+        data.push_back(
+            static_cast<uint8_t>(value));
+    }
+
+    return data;
+}
+
 int main()
 {
     SerialPort serial;
 
     std::cout
         << "\n=========================================\n"
-        << "      AMBEHub Diagnostic 0.5\n"
+        << "      AMBEHub Diagnostic 0.6\n"
         << "=========================================\n";
 
     if (!serial.open(
@@ -159,6 +185,7 @@ int main()
             << "2) PRODUCT_ID\n"
             << "3) VERSION\n"
             << "4) ESCUCHAR 5 SEGUNDOS\n"
+            << "5) ENVIAR TRAMA HEX\n"
             << "0) SALIR\n\n"
             << "Opcion: ";
 
@@ -201,15 +228,71 @@ int main()
                     auto now =
                         std::chrono::steady_clock::now();
 
-                    if (std::chrono::duration_cast<std::chrono::seconds>(
+                    if (std::chrono::duration_cast<
+                            std::chrono::seconds>(
                             now - start).count() >= 5)
+                    {
                         break;
+                    }
 
                     std::vector<uint8_t> rx;
 
-                    if (serial.readFrame(rx, 250, 20))
+                    if (serial.readFrame(
+                            rx,
+                            250,
+                            20))
+                    {
                         showFrame(rx);
+                    }
                 }
+
+                break;
+            }
+
+            case 5:
+            {
+                std::cin.ignore();
+
+                std::cout
+                    << "\nIntroduzca la trama HEX:\n\n";
+
+                std::string line;
+
+                std::getline(
+                    std::cin,
+                    line);
+
+                auto tx =
+                    parseHexString(line);
+
+                std::cout
+                    << "\nTX (" << tx.size()
+                    << " bytes)";
+
+                dumpHex(tx);
+
+                if (!serial.write(tx))
+                {
+                    std::cout
+                        << "\nERROR enviando trama.\n";
+
+                    break;
+                }
+
+                std::vector<uint8_t> rx;
+
+                if (!serial.readFrame(
+                        rx,
+                        2000,
+                        20))
+                {
+                    std::cout
+                        << "\nTimeout esperando respuesta.\n";
+
+                    break;
+                }
+
+                showFrame(rx);
 
                 break;
             }
@@ -218,7 +301,8 @@ int main()
                 return 0;
 
             default:
-                std::cout << "\nOpcion no valida.\n";
+                std::cout
+                    << "\nOpcion no valida.\n";
         }
     }
 }

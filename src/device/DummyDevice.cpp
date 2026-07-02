@@ -1,5 +1,7 @@
 #include "device/DummyDevice.h"
 
+#include "protocol/AMBEFrame.h"
+
 DummyDevice::DummyDevice()
 {
     m_state = DeviceState::FREE;
@@ -43,4 +45,30 @@ void DummyDevice::setState(
     DeviceState state)
 {
     m_state = state;
+}
+
+bool DummyDevice::sendFrame(
+    const AMBEFrame&)
+{
+    return false;
+}
+
+bool DummyDevice::exchangeFrame(
+    const AMBEFrame&,
+    AMBEFrame&)
+{
+    return false;
+}
+
+bool DummyDevice::sendRaw(
+    const std::vector<uint8_t>&)
+{
+    return false;
+}
+
+bool DummyDevice::exchangeRaw(
+    const std::vector<uint8_t>&,
+    std::vector<uint8_t>&)
+{
+    return false;
 }

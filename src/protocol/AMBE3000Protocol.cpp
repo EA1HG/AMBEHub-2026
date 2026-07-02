@@ -1,4 +1,5 @@
 #include "protocol/AMBE3000Protocol.h"
+#include "protocol/DV3KCommands.h"
 
 std::vector<uint8_t>
 AMBE3000Protocol::buildZeroPacket()
@@ -21,13 +22,12 @@ AMBE3000Protocol::buildZeroPacket()
 std::vector<uint8_t>
 AMBE3000Protocol::buildResetSoftCfg()
 {
-    return
+    AMBEFrame frame;
+
+    frame.command = DV3KCommands::RESET_SOFTCFG;
+
+    frame.payload =
     {
-        0x61,
-        0x00,
-        0x07,
-        0x00,
-        0x34,
         0x05,
         0x00,
         0x00,
@@ -35,34 +35,60 @@ AMBE3000Protocol::buildResetSoftCfg()
         0x00,
         0x00
     };
+
+    frame.length =
+        static_cast<uint16_t>(
+            frame.payload.size() + 1);
+
+    return frame.serialize();
 }
 
 std::vector<uint8_t>
 AMBE3000Protocol::buildProductId()
 {
-    return
-    {
-        0x61,
-        0x00,
-        0x01,
-        0x00,
-        0x30
-    };
+    AMBEFrame frame;
+
+    frame.length = 1;
+    frame.command = DV3KCommands::PRODUCT_ID;
+
+    return frame.serialize();
 }
 
 std::vector<uint8_t>
 AMBE3000Protocol::buildVersion()
 {
+    AMBEFrame frame;
+
+    frame.length = 1;
+    frame.command = DV3KCommands::VERSION;
+
+    return frame.serialize();
+}
+
+std::vector<uint8_t>
+AMBE3000Protocol::buildSetDMR()
+{
     return
     {
         0x61,
         0x00,
-        0x01,
+        0x0D,
         0x00,
-        0x31
+        0x0A,
+        0x04,
+        0x31,
+        0x07,
+        0x54,
+        0x24,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x6F,
+        0x48
     };
 }
-
 bool
 AMBE3000Protocol::isReady(
     const AMBEFrame& frame)
@@ -117,4 +143,60 @@ AMBE3000Protocol::commandToString(
         default:
             return "UNKNOWN";
     }
+}
+
+ AMBEFrame
+AMBE3000Protocol::buildEncodeSpeech(
+    const PCMFrame& pcm)
+{
+    AMBEFrame frame;
+
+    //
+    // Comando PCM
+    //
+
+    frame.command = DV3KCommands::PCM;
+
+    //
+    // Packet Type = Speech
+    //
+
+    frame.appendByte(0x02);
+
+    //
+    // Vocoder Channel = 0
+    //
+
+    frame.appendByte(0x40);
+    frame.appendByte(0x00);
+
+    //
+    // Speech Length = 160 samples (0x00A0)
+    //
+
+    frame.appendByte(0x00);
+    frame.appendByte(0xA0);
+
+    //
+    // PCM
+    //
+
+    frame.appendData(
+        pcm.toBytes());
+
+    return frame;
+}
+
+AMBEFrame
+AMBE3000Protocol::buildDecodeSpeech(
+    const AMBEVoiceFrame&)
+{
+    AMBEFrame frame;
+
+    //
+    // TODO:
+    // Construir el paquete AMBE -> PCM
+    //
+
+    return frame;
 }

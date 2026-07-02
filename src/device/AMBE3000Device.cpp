@@ -12,6 +12,7 @@
 #include "protocol/AMBEFrame.h"
 
 
+
 AMBE3000Device::AMBE3000Device()
 {
     m_state = DeviceState::OFFLINE;
@@ -158,13 +159,30 @@ if (!response.isReady())
     return false;
 }
 
+Logger::info("Configurando modo DMR...");
+
+if (!m_serial.write(
+        AMBE3000Protocol::buildSetDMR()))
+{
+    Logger::error("No se pudo enviar SET_DMR.");
+    return false;
+}
+
+std::vector<uint8_t> raw;
+
+if (!m_serial.readFrame(raw, 2000, 20))
+{
+    Logger::error("SET_DMR sin respuesta.");
+    return false;
+}
+
+Logger::info("Modo DMR configurado correctamente.");
 Logger::info("Codec inicializado correctamente.");
-    
-    m_state = DeviceState::FREE;
+
+m_state = DeviceState::FREE;
 
 return true;
 }
-
 
 void AMBE3000Device::close()
 {
@@ -209,4 +227,55 @@ void AMBE3000Device::setState(
     DeviceState state)
 {
     m_state = state;
+}
+
+
+
+bool AMBE3000Device::sendFrame(
+    const AMBEFrame& frame)
+{
+    return m_serial.write(
+        frame.serialize());
+}
+
+bool AMBE3000Device::exchangeFrame(
+    const AMBEFrame& tx,
+    AMBEFrame& rx)
+{
+    std::vector<uint8_t> raw;
+
+    if (!m_serial.write(
+            tx.serialize()))
+    {
+        return false;
+    }
+
+    if (!m_serial.readFrame(
+            raw,
+            2000,
+            20))
+    {
+        return false;
+    }
+
+    return rx.deserialize(raw);
+}
+
+bool AMBE3000Device::exchangeRaw(
+    const std::vector<uint8_t>& tx,
+    std::vector<uint8_t>& rx)
+{
+    if (!m_serial.write(tx))
+        return false;
+
+    return m_serial.readFrame(
+        rx,
+        2000,
+        20);
+}
+
+bool AMBE3000Device::sendRaw(
+    const std::vector<uint8_t>& tx)
+{
+    return m_serial.write(tx);
 }

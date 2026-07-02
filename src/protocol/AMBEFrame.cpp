@@ -29,12 +29,6 @@ bool AMBEFrame::deserialize(
 
     start = data[0];
 
-    /*
-     * El protocolo del DVMEGA parece utilizar
-     * BIG ENDIAN para la cabecera.
-     * Lo iremos confirmando con las capturas.
-     */
-
     length =
         (static_cast<uint16_t>(data[1]) << 8) |
         static_cast<uint16_t>(data[2]);
@@ -125,4 +119,40 @@ AMBEFrame::toString() const
     ss << '\n';
 
     return ss.str();
+}
+
+void
+AMBEFrame::appendByte(
+    uint8_t value)
+{
+    payload.push_back(value);
+
+    length =
+        static_cast<uint16_t>(
+            payload.size() + 1);
+}
+
+void
+AMBEFrame::appendData(
+    const std::vector<uint8_t>& data)
+{
+    payload.insert(
+        payload.end(),
+        data.begin(),
+        data.end());
+
+    length =
+        static_cast<uint16_t>(
+            payload.size() + 1);
+}
+
+void
+AMBEFrame::setPayload(
+    const std::vector<uint8_t>& data)
+{
+    payload = data;
+
+    length =
+        static_cast<uint16_t>(
+            payload.size() + 1);
 }

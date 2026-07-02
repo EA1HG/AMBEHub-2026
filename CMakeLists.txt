@@ -32,16 +32,27 @@ set(COMMON_SOURCES
     src/protocol/Packet.cpp
     src/protocol/PacketDispatcher.cpp
     src/protocol/PacketSerializer.cpp
-    src/protocol/PacketSerializer.cpp
+    
 
     src/protocol/AMBEFrame.cpp
     src/protocol/AMBE3000Protocol.cpp
     src/protocol/DV3KResponse.cpp
+    src/protocol/PCMFrame.cpp
+    src/protocol/AMBEVoiceFrame.cpp
+    src/protocol/DV3KAudioProtocol.cpp
+    
+    #
+    # Audio
+    #
 
+    src/audio/PCMGenerator.cpp
+    
     #
     # Session
     #
-
+    src/codec/CodecJob.cpp
+    src/codec/CodecEngine.cpp
+    src/codec/CodecJobQueue.cpp
     src/session/Session.cpp
     src/session/SessionManager.cpp
 
@@ -59,13 +70,13 @@ set(COMMON_SOURCES
     src/device/DummyDevice.cpp
     src/device/SerialPort.cpp
     src/device/AMBE3000Device.cpp
-)
+ )
 
-#
-# Servidor
-#
+    #
+    # Servidor
+    #
 
-add_executable(ambehub
+    add_executable(ambehub
 
     src/main.cpp
 
@@ -74,28 +85,51 @@ add_executable(ambehub
     src/network/UDPServer.cpp
 
     ${COMMON_SOURCES}
-)
+ )
 
-#
-# Cliente
-#
+   #
+   # Cliente
+   #
 
-add_executable(ambehub_client
+   add_executable(ambehub_client
 
     src/client/main.cpp
 
     src/client/AMBEHubClient.cpp
 
     ${COMMON_SOURCES}
-)
+ )
 
-#
-# Diagnóstico
-#
+   #
+   # Diagnóstico
+   #
 
-add_executable(ambe_diag
+   add_executable(ambe_diag
 
     tools/ambe_diag.cpp
 
     ${COMMON_SOURCES}
+)
+
+   #
+   # Prueba PCM
+   #
+
+   add_executable(ambe_pcm_test
+
+    tools/ambe_pcm_test.cpp
+
+    ${COMMON_SOURCES}
+)
+    
+   #
+   # Prueba Codec
+   #
+
+  add_executable(ambe_codec_test
+
+    tools/ambe_codec_test.cpp
+
+    ${COMMON_SOURCES}
+
 )
